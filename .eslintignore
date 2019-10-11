@@ -1,0 +1,8 @@
+es
+lib
+dist
+types
+build
+node_modules
+coverage
+src/**/__tests__/**/*

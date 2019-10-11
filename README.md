@@ -1,1 +1,1 @@
-# thin-ui
+# Thin-UI
