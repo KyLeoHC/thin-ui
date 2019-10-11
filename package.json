@@ -1,6 +1,6 @@
 {
   "name": "thin-ui",
-  "version": "0.0.1-beta.0",
+  "version": "0.0.1-beta.1",
   "description": "a lightweight ui component lib for vue",
   "main": "lib/index.js",
   "module": "es/index.js",
