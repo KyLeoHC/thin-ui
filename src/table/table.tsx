@@ -2,14 +2,17 @@ import {
   Component
 } from 'vue-property-decorator';
 import { VNode } from 'vue';
-import { ThinUIComponent } from '../component';
+import {
+  ThinUIComponent,
+  getComponentName
+} from '../component';
 
 @Component
 export default class ThinTable extends ThinUIComponent {
   private text = 'hello';
 
   public render(): VNode {
-    const componentName = this.getComponentName('table');
+    const componentName = getComponentName('table');
     return (
       <div
         {...{
