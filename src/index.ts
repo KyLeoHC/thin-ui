@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-const version = '0.0.1';
+const version = '0.1.0';
 const components = [
   Table
 ];
