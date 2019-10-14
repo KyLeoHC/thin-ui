@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Prop,
+  Ref,
   Component
 } from 'vue-property-decorator';
 import { VNode } from 'vue';
@@ -9,7 +10,8 @@ import {
   createGetComponentName
 } from '../component';
 import {
-  isNumber
+  isNumber,
+  debounce
 } from '../utils';
 
 const getComponentName = createGetComponentName('table');
@@ -45,6 +47,11 @@ function getColumnAlign(column: Column): string {
   return column.align || 'center';
 }
 
+function fixCSSUnit(value: string | number): string {
+  if (!value) return '';
+  return isNumber(value) ? `${value}px` : value;
+}
+
 @Component
 export default class ThinTable extends ThinUIComponent {
   @Prop({
@@ -75,12 +82,101 @@ export default class ThinTable extends ThinUIComponent {
   private readonly data!: { [key: string]: any }[];
   private minTableWidth = '700px';
   private isScroll = false;
-  private useIndependentHeader = true;
+  /** browser scrollbar height */
+  private scrollbarHeight = 15;
+  /** scroll to the extreme left flag */
+  private isScrollLeft = false;
+  /** scroll to the extreme right flag */
+  private isScrollRight = false;
+  private hScrollDebounce = debounce();
+  private vScrollDebounce = debounce(500);
+  @Ref('independentTableHead')
+  private readonly independentHeadRef!: HTMLElement;
+  @Ref('tableBody')
+  private readonly tableBodyRef!: HTMLElement;
 
-  public renderFixColumn(): VNode | null {
-    return this.isScroll ? (
-      <div>fix column</div>
-    ) : null;
+  get isEmptyData(): boolean {
+    return !this.data || !this.data.length;
+  }
+
+  get cssScroll(): { x: string; y: string } {
+    return {
+      x: fixCSSUnit(this.scroll.x),
+      y: fixCSSUnit(this.scroll.y)
+    };
+  }
+
+  get useIndependentHeader(): boolean {
+    return !!this.cssScroll.y && !this.isEmptyData;
+  }
+
+  /**
+   * vue 'mounted' hook
+   */
+  public mounted(): void {
+    this.$nextTick((): void => {
+      this.initScrollbarHeight();
+    });
+  }
+
+  /**
+   * get scrollbar height dynamically
+   */
+  public initScrollbarHeight(): void {
+    this.scrollbarHeight = this.independentHeadRef
+      ? (this.independentHeadRef.offsetHeight - this.independentHeadRef.clientHeight)
+      : 0;
+    if (!this.scrollbarHeight && this.tableBodyRef) {
+      this.scrollbarHeight = this.tableBodyRef.offsetHeight - this.tableBodyRef.clientHeight;
+    }
+  }
+
+  public resetScroll(): void {
+    this.$nextTick((): void => {
+      if (this.independentHeadRef) {
+        this.independentHeadRef.scrollLeft = 0;
+      }
+      if (this.tableBodyRef) {
+        this.tableBodyRef.scrollLeft = 0;
+      }
+      // if (this.tableScrollFixed) {
+      //   tableScrollFixed.scrollLeft = 0;
+      // }
+    });
+  }
+
+  /**
+   * sync the Horizontal scrolling of independent head and main body;
+   * @param scrollLeft
+   */
+  public syncHorizontalScroll(scrollLeft: number): void {
+    const {
+      independentHeadRef,
+      tableBodyRef,
+      hScrollDebounce
+    } = this;
+    tableBodyRef.scrollLeft = scrollLeft;
+    if (independentHeadRef) {
+      independentHeadRef.scrollLeft = scrollLeft;
+    }
+    // if ($refs.tableScrollFixed) {
+    //   const tableScrollFixed = $refs.tableScrollFixed as HTMLElement;
+    //   tableScrollFixed.scrollLeft = scrollLeft;
+    // }
+    hScrollDebounce((): void => {
+      // to the extreme left
+      this.isScrollLeft = scrollLeft === 0;
+      // to the extreme right
+      this.isScrollRight = (scrollLeft + tableBodyRef.clientWidth) >= tableBodyRef.scrollWidth;
+    });
+  }
+
+  public handleHeadScroll(): void {
+    this.syncHorizontalScroll(this.independentHeadRef.scrollLeft);
+  }
+
+  public handleBodyScroll(): void {
+    this.syncHorizontalScroll(this.tableBodyRef.scrollLeft);
   }
 
   public renderColgroup(): VNode {
@@ -112,7 +208,6 @@ export default class ThinTable extends ThinUIComponent {
         <th
           {...{
             style: {
-              width: getColumnWidth(column),
               'text-align': getColumnAlign(column)
             }
           }}
@@ -132,7 +227,11 @@ export default class ThinTable extends ThinUIComponent {
     );
   }
 
-  public renderIndependentHeader(colGroupVNode?: VNode, headVNode?: VNode): VNode | null {
+  public renderIndependentHeader(
+    colGroupVNode: VNode,
+    headVNode: VNode,
+    minWidth: string
+  ): VNode | null {
     return this.useIndependentHeader ? (
       <div
         {...{
@@ -141,18 +240,25 @@ export default class ThinTable extends ThinUIComponent {
       >
         <div
           {...{
-            class: [getComponentName('head')]
+            class: [getComponentName('head')],
+            style: {
+              'margin-bottom': `-${this.scrollbarHeight}px`
+            },
+            on: {
+              scroll: this.handleHeadScroll
+            },
+            ref: 'independentTableHead'
           }}
         >
           <table
             {...{
               style: {
-                'min-width': this.minTableWidth
+                'min-width': minWidth
               }
             }}
           >
-            {colGroupVNode || this.renderColgroup()}
-            {headVNode || this.renderHeader()}
+            {colGroupVNode}
+            {headVNode}
           </table>
         </div>
       </div>
@@ -172,7 +278,6 @@ export default class ThinTable extends ThinUIComponent {
           <td
             {...{
               style: {
-                width: getColumnWidth(column),
                 'text-align': getColumnAlign(column)
               }
             }}
@@ -196,22 +301,43 @@ export default class ThinTable extends ThinUIComponent {
     );
   }
 
+  /**
+   * vue 'render' function
+   */
   public render(): VNode {
-    const colGroupVNode = this.renderColgroup();
-    const headVNode = this.renderHeader();
+    const {
+      isScrollLeft,
+      isScrollRight,
+      cssScroll,
+      minTableWidth,
+      useIndependentHeader,
+      border,
+      handleBodyScroll,
+      renderIndependentHeader,
+      renderColgroup,
+      renderHeader,
+      renderBody
+    } = this;
+    const colGroupVNode = renderColgroup();
+    const headVNode = renderHeader();
+    const minWidth = cssScroll.x ? cssScroll.x : minTableWidth;
     return (
       <div
         {...{
           class: [
             componentName,
-            this.border ? getComponentName('-border') : '',
-            this.useIndependentHeader ? getComponentName('-independent-head') : ''
+            border ? getComponentName('-border') : '',
+            useIndependentHeader ? getComponentName('-independent-head') : '',
+            cssScroll.x ? getComponentName('-scroll-x') : '',
+            cssScroll.y ? getComponentName('-scroll-y') : '',
+            isScrollLeft ? getComponentName('-position-left') : '',
+            isScrollRight ? getComponentName('-position-right') : ''
           ]
         }}
       >
         <div
           {...{
-            class: [getComponentName('content'), getComponentName('scroll')]
+            class: [getComponentName('content')]
           }}
         >
           <div
@@ -219,26 +345,35 @@ export default class ThinTable extends ThinUIComponent {
               class: [getComponentName('main')]
             }}
           >
-            {this.renderIndependentHeader(colGroupVNode, headVNode)}
+            {renderIndependentHeader(colGroupVNode, headVNode, minWidth)}
             <div
               {...{
-                class: [getComponentName('body')]
+                class: [getComponentName('body')],
+                style: {
+                  'max-height': cssScroll.y,
+                  overflow: (cssScroll.x && cssScroll.y) ? 'scroll' : '',
+                  'overflow-x': cssScroll.x ? 'scroll' : '',
+                  'overflow-y': cssScroll.y ? 'scroll' : ''
+                },
+                on: {
+                  scroll: handleBodyScroll
+                },
+                ref: 'tableBody'
               }}
             >
               <table
                 {...{
                   style: {
-                    'min-width': this.minTableWidth
+                    'min-width': minWidth
                   }
                 }}
               >
                 {colGroupVNode}
-                {!this.useIndependentHeader && headVNode}
-                {this.renderBody()}
+                {!useIndependentHeader && headVNode}
+                {renderBody()}
               </table>
             </div>
           </div>
-          {this.renderFixColumn()}
         </div>
       </div>
     );

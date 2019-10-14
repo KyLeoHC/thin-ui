@@ -1,6 +1,7 @@
 <template>
   <div class="list-container">
     <thin-table
+      :scroll="{ x: 1024, y: 500 }"
       :columns="columns"
       :data="data"
       border

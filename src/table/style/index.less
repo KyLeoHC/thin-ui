@@ -1,6 +1,11 @@
 @import "./var";
 
 @table-prefix: ~'@{ui-prefix}-table';
+@table-main: ~'@{table-prefix}-main';
+@table-head: ~'@{table-prefix}-head';
+@table-body: ~'@{table-prefix}-body';
+@table-thead: ~'@{table-prefix}-thead';
+@table-tbody: ~'@{table-prefix}-tbody';
 
 .@{table-prefix} {
   font-size: 14px;
@@ -13,44 +18,52 @@
     text-align: center;
   }
 
-  .@{table-prefix}-main {
+  .@{table-main} {
     overflow-x: auto;
-  }
 
-  .@{table-prefix}-thead {
-    tr {
-      th {
-        padding: @table-padding;
-        border-bottom: @table-border;
-        background: @table-head-bg;
+    .@{table-head} {
+      overflow: scroll;
+    }
+
+    .@{table-body} {
+      background: @white;
+    }
+
+    .@{table-thead} {
+      tr {
+        th {
+          padding: @table-padding;
+          border-bottom: @table-border;
+          background: @table-head-bg;
+        }
       }
     }
-  }
 
-  .@{table-prefix}-tbody {
-    tr {
-      td {
-        padding: @table-padding;
-        border-bottom: @table-border;
+    .@{table-tbody} {
+      tr {
+        td {
+          padding: @table-padding;
+          border-bottom: @table-border;
+        }
       }
     }
   }
 
   &.@{table-prefix}--border {
-    .@{table-prefix}-main {
+    .@{table-main} {
       border-left: @table-border;
       border-right: @table-border;
     }
 
-    .@{table-prefix}-head,
-    .@{table-prefix}-body {
+    .@{table-head},
+    .@{table-body} {
       & > table {
         border-top: @table-border;
       }
     }
 
-    .@{table-prefix}-thead,
-    .@{table-prefix}-tbody {
+    .@{table-thead},
+    .@{table-tbody} {
       tr {
         th:nth-last-child(n + 2),
         td:nth-last-child(n + 2) {
@@ -60,11 +73,29 @@
     }
 
     &.@{table-prefix}--independent-head {
-      .@{table-prefix}-body {
+      .@{table-body} {
         & > table {
           border-top: 0;
         }
       }
+    }
+  }
+
+  &.@{table-prefix}--scroll-x {
+    .@{table-main} {
+      .@{table-tbody} {
+        tr:last-child {
+          td {
+            border-bottom: 0;
+          }
+        }
+      }
+    }
+  }
+
+  &.@{table-prefix}--scroll-y {
+    .@{table-main} {
+      border-right: 0;
     }
   }
 }

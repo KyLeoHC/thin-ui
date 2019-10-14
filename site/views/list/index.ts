@@ -11,7 +11,7 @@ interface User {
 }
 
 const data: User[] = [];
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 30; i++) {
   data.push({
     id: i,
     name: `James-${i}`,
@@ -25,11 +25,11 @@ export default class List extends Vue {
   private columns: Column[] = [{
     prop: 'id',
     title: '标识符',
-    width: 100
+    width: 400
   }, {
     prop: 'name',
     title: '姓名',
-    width: 200,
+    width: 400,
     headSlot: 'nameHead'
   }, {
     prop: 'birthday',
