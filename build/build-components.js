@@ -78,7 +78,7 @@ function generateDefinitionFiles() {
   ]);
 }
 
-async function clearUselessFile() {
+async function cleanUselessFile() {
   await del([
     `${esDir}/**/*.ts?(x)`,
     `${libDir}/**/*.ts?(x)`,
@@ -87,7 +87,6 @@ async function clearUselessFile() {
   ], {
     force: true
   });
-  await del
 }
 
 exports.default = series(
@@ -95,5 +94,5 @@ exports.default = series(
   compileTSXToES,
   compileTSXToLib,
   generateDefinitionFiles,
-  clearUselessFile
+  cleanUselessFile
 );
